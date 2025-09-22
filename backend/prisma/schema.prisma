@@ -1,0 +1,118 @@
+// schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  // relations
+  inventoryItems InventoryItem[]
+}
+
+model InventoryItem {
+  id             String   @id @default(uuid())
+  sku            String?  @unique
+  title          String
+  costCents      Int
+  quantityOnHand Int      @default(0)
+  source         String?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  // collections support
+  isCollection Boolean         @default(false)
+  parentId     String?
+  parent       InventoryItem?  @relation("CollectionItems", fields: [parentId], references: [id])
+  children     InventoryItem[] @relation("CollectionItems")
+
+  // tenanting
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  // 🔧 BACK-RELATION for ListingLink <-> InventoryItem
+  listingLinks ListingLink[] @relation("ItemListingLinks")
+
+  @@index([userId, parentId])
+  @@index([isCollection])
+}
+
+model ListingLink {
+  id         String   @id @default(uuid())
+  ebayItemId String?
+  listingUrl String?
+  active     Boolean  @default(true)
+  linkedAt   DateTime @default(now())
+
+  // relations
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation("ItemListingLinks", fields: [inventoryItemId], references: [id])
+
+  @@index([ebayItemId])
+}
+
+model EbayToken {
+  id                    String   @id @default(uuid())
+  userId                String
+  ebayUserId            String?      // fill after first call
+  accessToken           String
+  refreshToken          String
+  accessTokenExpiresAt  DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Order {
+  id            String   @id @default(uuid())
+  ebayOrderId   String   @unique
+  createdAt     DateTime
+  buyer         String?
+  totalCents    Int
+  taxCents      Int      @default(0)
+  shippingCents Int      @default(0)
+
+  rawId         String?  // link to RawPayload if you store one
+
+  lines         OrderLine[]
+
+  @@index([createdAt])
+}
+
+model OrderLine {
+  id           String  @id @default(uuid())
+  orderId      String
+  order        Order   @relation(fields: [orderId], references: [id])
+
+  // From eBay Fulfillment API
+  ebayLineId   String?        // lineItemId (if you store it)
+  sku          String?
+  ebayItemId   String?
+  qty          Int
+  itemPriceCents Int
+
+  // Matching state
+  inventoryItemId String?     // set when matched
+
+  @@index([sku])
+  @@index([ebayItemId])
+  @@unique([orderId, ebayLineId])
+}
+
+model RawPayload {
+  id        String   @id @default(uuid())
+  source    String   // e.g., "fulfillment.getOrders"
+  payload   Json
+  createdAt DateTime @default(now())
+}
+
