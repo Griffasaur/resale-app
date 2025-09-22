@@ -1,5 +1,8 @@
 import express from "express";
 import { prisma } from "./db.js";
+import authRoutes from "./routes/auth.js";
+
+app.use("/auth", authRoutes);
 
 export const app = express();
 app.use(express.json());
@@ -12,19 +15,6 @@ app.get("/", (req, res) => res.send("resale-app backend is alive"));
 app.get("/test", async (req, res) => {
   const items = await prisma.inventoryItem.findMany();
   res.json(items);
-});
-
-// dev seed (keep for now)
-app.post("/seed", async (req, res) => {
-  const item = await prisma.inventoryItem.create({
-    data: {
-      title: "Test Item",
-      costCents: 500,
-      quantityOnHand: 2,
-      user: { create: { email: "test@example.com", passwordHash: "dummyhash" } }
-    }
-  });
-  res.json(item);
 });
 
 // CRUD: inventory
@@ -69,10 +59,9 @@ app.delete("/inventory/:id", async (req, res) => {
 
 
 // Temporary Test Sync
-// if you created syncOrders as a service, import it:
-import { syncOrders } from "./routes/sync.js"; // or wherever you put it
+import { syncOrders } from "./routes/sync.js"; 
 
-// trigger a sync (uses your mock client under the hood)
+// trigger a sync 
 app.post("/sync/orders", async (req, res) => {
   try {
     const days = Number(req.query.days ?? 90);
