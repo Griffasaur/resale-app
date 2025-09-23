@@ -1,21 +1,30 @@
 import express from "express";
 import { prisma } from "./db.js";
+import syncRouter from "./routes/sync.js";
+import { syncOrders } from "./services/syncOrders.js";
 import authRoutes from "./routes/auth.js";
+import debugRoutes from "./routes/debug.js";
+
+
+
+export const app = express();
+
+app.use(express.json());
 
 app.use("/auth", authRoutes);
 
-export const app = express();
-app.use(express.json());
+//Debug Routes
+app.use("/debug", debugRoutes);
 
-// health
-app.get("/healthz", (req, res) => res.json({ ok: true }));
+// small dev helpers
+app.set("json spaces", 2);
+app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
-// sanity routes
-app.get("/", (req, res) => res.send("resale-app backend is alive"));
-app.get("/test", async (req, res) => {
-  const items = await prisma.inventoryItem.findMany();
-  res.json(items);
-});
+// mount routers
+app.use("/sync", syncRouter);
+
+// root
+app.get("/", (_req, res) => res.send("resale-app backend is alive"));
 
 // CRUD: inventory
 app.get("/inventory", async (req, res) => {
@@ -57,10 +66,6 @@ app.delete("/inventory/:id", async (req, res) => {
   res.json({ message: "Item deleted" });
 });
 
-
-// Temporary Test Sync
-import { syncOrders } from "./routes/sync.js"; 
-
 // trigger a sync 
 app.post("/sync/orders", async (req, res) => {
   try {
@@ -80,4 +85,15 @@ app.get("/sales", async (_req, res) => {
     include: { lines: true }
   });
   res.json(orders);
+});
+
+// Debugging
+
+app.get("/debug/ebay-env", (req, res) => {
+  res.json({
+    EBAY_ENV: process.env.EBAY_ENV,
+    EBAY_CLIENT_ID: process.env.EBAY_CLIENT_ID ? "SET" : "MISSING",
+    EBAY_RU_NAME: process.env.EBAY_RU_NAME,
+    EBAY_REDIRECT_URL: process.env.EBAY_REDIRECT_URL
+  });
 });

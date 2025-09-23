@@ -9,13 +9,9 @@ router.post("/orders", async (req, res) => {
     const result = await syncOrders({ days });
     res.json(result);
   } catch (err) {
-    console.error(err);
+    console.error("[Sync] Failed", err);
     res.status(500).json({ error: "Sync failed" });
   }
 });
 
 export default router;
-
-
-
-

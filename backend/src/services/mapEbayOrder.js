@@ -1,4 +1,4 @@
-// src/services/mapEbayOrder.js
+
 export function mapEbayOrderToModels(orderJson) {
   const toCents = (v) => Math.round(Number(v || 0) * 100);
 

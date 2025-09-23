@@ -1,48 +1,42 @@
+// backend/src/routes/auth.js  (snippet)
 import express from "express";
 import crypto from "crypto";
-import { ebayClient } from "../ebay/index.js";
+import { RestEbayClient } from "../ebay/client.real.js";
 import { prisma } from "../db.js";
 
 const router = express.Router();
+const oauthStateStore = new Map();
 
-// utility for CSRF/random state
-function cryptoRandom() {
-  return crypto.randomBytes(16).toString("hex");
-}
+function cryptoRandom() { return crypto.randomBytes(16).toString("hex"); }
 
-// start OAuth: redirect user to eBay consent
 router.get("/ebay/connect", (req, res) => {
   const state = cryptoRandom();
-  // TODO: save `state` to session or db for verification in callback
-  const url = ebayClient.getAuthorizeUrl({
+  oauthStateStore.set(state, Date.now());
+  const url = RestEbayClient.getAuthorizeUrl({
     scopes: ["https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly"],
-    state,
+    state
   });
+  console.log("Redirecting to:", url);
   res.redirect(url);
 });
 
-// callback after user authorizes
 router.get("/ebay/callback", async (req, res) => {
   const { code, state } = req.query;
-  // TODO: verify `state` against stored value
+  if (!state || !oauthStateStore.has(state)) return res.status(400).send("Invalid state");
+  oauthStateStore.delete(state);
 
   try {
-    const { accessToken, refreshToken, accessTokenExpiresAt, ebayUserId } =
-      await ebayClient.exchangeCode(code);
-
-    // for now, just attach to a dummy user (replace with real auth’d user later)
+    const { accessToken, refreshToken, accessTokenExpiresAt, raw } = await RestEbayClient.exchangeCode(code);
     const dummyUserId = "user-1";
-
     await prisma.ebayToken.upsert({
       where: { userId: dummyUserId },
-      update: { accessToken, refreshToken, accessTokenExpiresAt, ebayUserId },
-      create: { userId: dummyUserId, accessToken, refreshToken, accessTokenExpiresAt, ebayUserId },
+      update: { accessToken, refreshToken, accessTokenExpiresAt },
+      create: { userId: dummyUserId, accessToken, refreshToken, accessTokenExpiresAt }
     });
-
-    res.send("✅ eBay account connected. You can close this window.");
+    res.send("Connected (sandbox). You can close this window.");
   } catch (err) {
-    console.error(err);
-    res.status(500).send("eBay OAuth failed");
+    console.error("OAuth exchange failed", err);
+    res.status(500).send("OAuth exchange failed");
   }
 });
 
