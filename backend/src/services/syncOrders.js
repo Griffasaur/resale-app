@@ -1,7 +1,7 @@
 import { ebayClient } from "../ebay/index.js";
 import { mapEbayOrderToModels } from "./mapEbayOrder.js";
 import { prisma } from "../db.js";
-import { ensureFreshAccessToken } from "./ebayAuth.js"; // make sure this file exists
+import { ensureFreshAccessToken } from "./ebayAuth.js";
 
 /**
  * Sync orders from eBay into our DB.
@@ -95,6 +95,8 @@ export async function syncOrders({ days = 90, userId = "user-1" } = {}) {
     // If it's numeric-like, convert to number so the next call will pass offset.
     pagerToken = typeof nextToken === "number" ? nextToken : nextToken;
   }
+
+  const accessToken = await ensureFreshAccessToken("user-1");
 
   return { created, updated };
 }

@@ -4,6 +4,7 @@ import syncRouter from "./routes/sync.js";
 import { syncOrders } from "./services/syncOrders.js";
 import authRoutes from "./routes/auth.js";
 import debugRoutes from "./routes/debug.js";
+import ebayRoutes from "./routes/ebay.js";
 
 
 
@@ -11,7 +12,10 @@ export const app = express();
 
 app.use(express.json());
 
+// mount routers
 app.use("/auth", authRoutes);
+app.use("/sync", syncRouter);
+app.use("/ebay", ebayRoutes);
 
 //Debug Routes
 app.use("/debug", debugRoutes);
@@ -19,9 +23,6 @@ app.use("/debug", debugRoutes);
 // small dev helpers
 app.set("json spaces", 2);
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
-
-// mount routers
-app.use("/sync", syncRouter);
 
 // root
 app.get("/", (_req, res) => res.send("resale-app backend is alive"));
